@@ -24,6 +24,7 @@ from gymnax.environments.misc import pong
 from gymnax.environments.misc import reacher
 from gymnax.environments.misc import rooms
 from gymnax.environments.misc import swimmer
+from gymnax.environments.minatar import slime_volley
 
 
 # =============================================================================
@@ -102,6 +103,8 @@ def make(env_id: str, **env_kwargs):
         env = swimmer.Swimmer(**env_kwargs)
     elif env_id == "Pong-misc":
         env = pong.Pong(**env_kwargs)
+    elif env_id == "SlimeVolley":
+        env = slime_volley.SlimeVolley(**env_kwargs)
     else:
         raise ValueError("Environment ID is not registered.")
 
@@ -135,4 +138,5 @@ registered_envs = [
     "Reacher-misc",
     "Swimmer-misc",
     "Pong-misc",
+    "SlimeVolley",
 ]
