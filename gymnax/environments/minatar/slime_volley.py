@@ -9,12 +9,10 @@ import jax.numpy as jnp
 from gymnax.environments import environment
 from gymnax.environments import spaces
 from jax import random
-import cv2
 import numpy as np
 from typing import Any, Dict, Tuple, Union
 import math
 
-RENDER_MODE = True
 
 REF_W = 24 * 2
 REF_H = REF_W
@@ -43,138 +41,6 @@ PIXEL_SCALE = 2  # Render at multiple of Pixel Obs resolution, then downscale.
 
 PIXEL_WIDTH = 84 * 2 * 2
 PIXEL_HEIGHT = 84 * 2
-
-
-def setNightColors():
-    # night time color:
-    global BALL_COLOR, AGENT_LEFT_COLOR, AGENT_RIGHT_COLOR
-    global PIXEL_AGENT_LEFT_COLOR, PIXEL_AGENT_RIGHT_COLOR
-    global BACKGROUND_COLOR, FENCE_COLOR, COIN_COLOR, GROUND_COLOR
-    BALL_COLOR = (217, 79, 0)
-    AGENT_LEFT_COLOR = (35, 93, 188)
-    AGENT_RIGHT_COLOR = (255, 236, 0)
-    PIXEL_AGENT_LEFT_COLOR = (0, 87, 184)  # AZURE BLUE
-    PIXEL_AGENT_RIGHT_COLOR = (254, 221, 0)  # YELLOW
-
-    BACKGROUND_COLOR = (11, 16, 19)
-    FENCE_COLOR = (102, 56, 35)
-    COIN_COLOR = FENCE_COLOR
-    GROUND_COLOR = (116, 114, 117)
-
-
-def setDayColors():
-    # day time color:
-    # note: do not use day time colors for pixel-obs training.
-    global BALL_COLOR, AGENT_LEFT_COLOR, AGENT_RIGHT_COLOR
-    global PIXEL_AGENT_LEFT_COLOR, PIXEL_AGENT_RIGHT_COLOR
-    global BACKGROUND_COLOR, FENCE_COLOR, COIN_COLOR, GROUND_COLOR
-    global PIXEL_SCALE, PIXEL_WIDTH, PIXEL_HEIGHT
-    PIXEL_SCALE = int(4 * 1.0)
-    PIXEL_WIDTH = int(84 * 2 * 1.0)
-    PIXEL_HEIGHT = int(84 * 1.0)
-    BALL_COLOR = (255, 200, 20)
-    AGENT_LEFT_COLOR = (240, 75, 0)
-    AGENT_RIGHT_COLOR = (0, 150, 255)
-    PIXEL_AGENT_LEFT_COLOR = (240, 75, 0)
-    PIXEL_AGENT_RIGHT_COLOR = (0, 150, 255)
-
-    BACKGROUND_COLOR = (255, 255, 255)
-    FENCE_COLOR = (240, 210, 130)
-    COIN_COLOR = FENCE_COLOR
-    GROUND_COLOR = (128, 227, 153)
-
-
-setNightColors()
-
-
-def setPixelObsMode():
-    """
-    used for experimental pixel-observation mode
-    note: new dim's chosen to be PIXEL_SCALE (2x) as Pixel Obs dims
-          (will be downsampled)
-    """
-    global WINDOW_WIDTH, WINDOW_HEIGHT, FACTOR
-    global AGENT_LEFT_COLOR, AGENT_RIGHT_COLOR, PIXEL_MODE
-    PIXEL_MODE = True
-    WINDOW_WIDTH = PIXEL_WIDTH * PIXEL_SCALE
-    WINDOW_HEIGHT = PIXEL_HEIGHT * PIXEL_SCALE
-    FACTOR = WINDOW_WIDTH / REF_W
-    AGENT_LEFT_COLOR = PIXEL_AGENT_LEFT_COLOR
-    AGENT_RIGHT_COLOR = PIXEL_AGENT_RIGHT_COLOR
-
-
-setPixelObsMode()
-
-
-def upsize_image(img):
-    return cv2.resize(
-        img,
-        (PIXEL_WIDTH * PIXEL_SCALE, PIXEL_HEIGHT * PIXEL_SCALE),
-        interpolation=cv2.INTER_NEAREST,
-    )
-
-
-def downsize_image(img):
-    return cv2.resize(img, (PIXEL_WIDTH, PIXEL_HEIGHT), interpolation=cv2.INTER_AREA)
-
-
-# conversion from space to pixels (allows us to render to diff resolutions)
-def toX(x):
-    return (x + REF_W / 2) * FACTOR
-
-
-def toP(x):
-    return (x) * FACTOR
-
-
-def toY(y):
-    return y * FACTOR
-
-
-def create_canvas(c):
-    result = np.ones((WINDOW_HEIGHT, WINDOW_WIDTH, 3), dtype=np.uint8)
-    for channel in range(3):
-        result[:, :, channel] *= c[channel]
-    return result
-
-
-def rect(canvas, x, y, width, height, color):
-    """Processing style function to make it easy to port p5.js to python"""
-    return cv2.rectangle(
-        canvas,
-        (round(x), round(WINDOW_HEIGHT - y)),
-        (round(x + width), round(WINDOW_HEIGHT - y + height)),
-        color,
-        thickness=-1,
-        lineType=cv2.LINE_AA,
-    )
-
-
-def half_circle(canvas, x, y, r, color):
-    """Processing style function to make it easy to port p5.js to python"""
-    return cv2.ellipse(
-        canvas,
-        (round(x), WINDOW_HEIGHT - round(y)),
-        (round(r), round(r)),
-        0,
-        0,
-        -180,
-        color,
-        thickness=-1,
-        lineType=cv2.LINE_AA,
-    )
-
-
-def circle(canvas, x, y, r, color):
-    """Processing style function to make it easy to port p5.js to python"""
-    return cv2.circle(
-        canvas,
-        (round(x), round(WINDOW_HEIGHT - y)),
-        round(r),
-        color,
-        thickness=-1,
-        lineType=cv2.LINE_AA,
-    )
 
 
 @struct.dataclass
@@ -367,16 +233,6 @@ class Wall:
         self.h = h
         self.c = c
 
-    def display(self, canvas):
-        return rect(
-            canvas,
-            toX(self.x - self.w / 2),
-            toY(self.y + self.h / 2),
-            toP(self.w),
-            toP(self.h),
-            color=self.c,
-        )
-
 
 def initParticleState(x, y, vx, vy, r):
     return ParticleState(
@@ -396,30 +252,6 @@ class Particle:
     def __init__(self, p: ParticleState, c):
         self.p = p
         self.c = c
-
-    def display(self, canvas):
-        try:
-            self.p.x = self.p.x[0]
-            self.p.y = self.p.y[0]
-            self.p.r = self.p.r[0]
-        except:
-            pass
-        try:
-            return circle(
-                canvas,
-                toX(float(self.p.x)),
-                toY(float(self.p.y)),
-                toP(float(self.p.r)),
-                color=self.c,
-            )
-        except:
-            return circle(
-                canvas,
-                toX(float(self.p.x[0])),
-                toY(float(self.p.y[0])),
-                toP(float(self.p.r[0])),
-                color=self.c,
-            )
 
     def move(self):
         self.p = ParticleState(
@@ -808,62 +640,6 @@ class Agent:
     def getObservation(self):
         return getObsArray(self.state)
 
-    def display(self, canvas, ball_x, ball_y):
-        bx = float(ball_x[0])
-        by = float(ball_y[0])
-        p = self.p
-
-        x = float(p.x[0])
-        y = float(p.y[0])
-        r = float(p.r[0])
-        direction = int(p.direction[0])
-
-        angle = math.pi * 60 / 180
-        if direction == 1:
-            angle = math.pi * 120 / 180
-        eyeX = 0
-        eyeY = 0
-
-        canvas = half_circle(canvas, toX(x), toY(y), toP(r), color=self.c)
-
-        # track ball with eyes (replace with observed info later):
-        c = math.cos(angle)
-        s = math.sin(angle)
-        ballX = bx - (x + (0.6) * r * c)
-        ballY = by - (y + (0.6) * r * s)
-
-        dist = math.sqrt(ballX * ballX + ballY * ballY)
-        eyeX = ballX / dist
-        eyeY = ballY / dist
-
-        canvas = circle(
-            canvas,
-            toX(x + (0.6) * r * c),
-            toY(y + (0.6) * r * s),
-            toP(r) * 0.3,
-            color=(255, 255, 255),
-        )
-        canvas = circle(
-            canvas,
-            toX(x + (0.6) * r * c + eyeX * 0.15 * r),
-            toY(y + (0.6) * r * s + eyeY * 0.15 * r),
-            toP(r) * 0.1,
-            color=(0, 0, 0),
-        )
-
-        # draw coins (lives) left
-        num_lives = int(p.life[0])
-        for i in range(1, num_lives):
-            canvas = circle(
-                canvas,
-                toX(direction * (REF_W / 2 + 0.5 - i * 2.0)),
-                WINDOW_HEIGHT - toY(1.5),
-                toP(0.5),
-                color=COIN_COLOR,
-            )
-
-        return canvas
-
 
 def baselinePolicy(obs: jnp.ndarray, state: jnp.ndarray, params: BaselinePolicyParams):
     """take obs, prev rnn state, return updated rnn state, action"""
@@ -894,24 +670,27 @@ class Game:
         self.reset(gameState)
 
     def reset(self, gameState):
-        self.ground = Wall(0, 0.75, REF_W, REF_U, c=GROUND_COLOR)
+        self.ground = Wall(0, 0.75, REF_W, REF_U)
         self.fence = Wall(
             0,
             0.75 + REF_WALL_HEIGHT / 2,
             REF_WALL_WIDTH,
             (REF_WALL_HEIGHT - 1.5),
-            c=FENCE_COLOR,
         )
         fenceStubParticle = initParticleState(
             0, REF_WALL_HEIGHT, 0, 0, REF_WALL_WIDTH / 2
         )
-        self.fenceStub = Particle(fenceStubParticle, c=FENCE_COLOR)
+        self.fenceStub = Particle(fenceStubParticle)
         self.setGameState(gameState)
 
     def setGameState(self, gameState):
-        self.ball = Particle(gameState.ball, c=BALL_COLOR)
-        self.agent_left = Agent(gameState.agent_left, c=AGENT_LEFT_COLOR)
-        self.agent_right = Agent(gameState.agent_right, c=AGENT_RIGHT_COLOR)
+        self.ball = Particle(gameState.ball)
+        self.agent_left = Agent(
+            gameState.agent_left,
+        )
+        self.agent_right = Agent(
+            gameState.agent_right,
+        )
         self.agent_left.updateState(self.ball.p, self.agent_right.p)
         self.agent_right.updateState(self.ball.p, self.agent_left.p)
         self.hidden_left = gameState.hidden_left
@@ -982,18 +761,6 @@ class Game:
         self.agent_right.updateState(self.ball.p, self.agent_left.p)
 
         return result
-
-    def display(self):
-        canvas = create_canvas(c=BACKGROUND_COLOR)
-        canvas = self.fence.display(canvas)
-        canvas = self.fenceStub.display(canvas)
-        canvas = self.agent_left.display(canvas, self.ball.p.x, self.ball.p.y)
-        canvas = self.agent_right.display(canvas, self.ball.p.x, self.ball.p.y)
-        canvas = self.ball.display(canvas)
-        canvas = self.ground.display(canvas)
-        canvas = downsize_image(canvas)
-        # canvas = upsize_image(canvas)  # removed to save memory for render.
-        return canvas
 
 
 def get_random_ball_v(key: jnp.ndarray):
