@@ -226,12 +226,11 @@ def initBaselinePolicyParams():
 class Wall:
     """used for the fence, and also the ground"""
 
-    def __init__(self, x, y, w, h, c):
+    def __init__(self, x, y, w, h):
         self.x = x
         self.y = y
         self.w = w
         self.h = h
-        self.c = c
 
 
 def initParticleState(x, y, vx, vy, r):
@@ -249,9 +248,8 @@ def initParticleState(x, y, vx, vy, r):
 class Particle:
     """used for the ball, and also for the round stub above the fence"""
 
-    def __init__(self, p: ParticleState, c):
+    def __init__(self, p: ParticleState):
         self.p = p
-        self.c = c
 
     def move(self):
         self.p = ParticleState(
@@ -492,10 +490,9 @@ def getObsArray(rs: Observation):
 class Agent:
     """keeps track of the agent in the game. note: not the policy network"""
 
-    def __init__(self, agent, c):
+    def __init__(self, agent):
         self.p = agent
         self.state = getZeroObs()
-        self.c = c
 
     def setAction(self, action):
         forward = jnp.int32(0)
