@@ -846,6 +846,27 @@ def get_init_game_state_fn(key: jnp.ndarray):
     return initGameState(ball_vx, ball_vy)
 
 
+def calculate_position_based_reward(game_state: GameState) -> float:
+    ball = game_state.ball
+
+    # The court extends from -REF_W/2 to REF_W/2
+    # We want to reward the ball being as far left (negative x) as possible
+
+    # Normalize the ball's x-position to a range of 0 to 1
+    # 0 means the ball is at the far left (opponent's side)
+    # 1 means the ball is at the far right (agent's side)
+    normalized_position = (ball.x + REF_W / 2) / REF_W
+
+    # Invert the normalized position so that leftmost positions give highest reward
+    reward = 1 - normalized_position
+
+    # Scale the reward to make it more impactful
+    # You can adjust this scaling factor as needed
+    reward_scale = 10
+
+    return reward * reward_scale
+
+
 class SlimeVolley(environment.Environment[EnvState, EnvParams]):
 
     def __init__(self):
@@ -869,9 +890,10 @@ class SlimeVolley(environment.Environment[EnvState, EnvParams]):
         next_key, key = random.split(state.key)
         # Convert scalar action to one-hot vector
         action = jax.nn.one_hot(action, 3)
-        cur_state, reward, obs = update_state(
+        cur_state, base_reward, obs = update_state(
             action=action, game_state=state.game_state, key=key
         )
+        reward = calculate_position_based_reward(cur_state)
         time = state.time + 1
         state = state.replace(time=time)
         done = state.time >= params.max_steps_in_episode
